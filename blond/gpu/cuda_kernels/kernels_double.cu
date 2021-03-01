@@ -34,7 +34,7 @@ __device__ double atomicAdd(double* address, double val)
 extern "C"
 __global__ void gpu_losses_longitudinal_cut(
     double *dt,
-    double *dev_id,
+    int *dev_id,
     const int size,
     const double min_dt,
     const double max_dt)
@@ -48,7 +48,7 @@ __global__ void gpu_losses_longitudinal_cut(
 extern "C"
 __global__ void gpu_losses_energy_cut(
     double *dE,
-    double *dev_id,
+    int *dev_id,
     const int size,
     const double min_dE,
     const double max_dE)
@@ -62,7 +62,7 @@ __global__ void gpu_losses_energy_cut(
 extern "C"
 __global__ void gpu_losses_below_energy(
     double *dE,
-    double *dev_id,
+    int *dev_id,
     const int size,
     const double min_dE)
 {
@@ -641,7 +641,7 @@ __global__ void gpu_trapz_stage2(double *out, const double *pycuda_reduction_inp
 
 
 extern "C"
-__global__ void mean_non_zeros_stage1(double *out, double *x, double *id,
+__global__ void mean_non_zeros_stage1(double *out, double *x, int *id,
                            unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -689,7 +689,7 @@ __global__ void mean_non_zeros_stage1(double *out, double *x, double *id,
 
 
 extern "C"
-__global__ void mean_non_zeros_stage2(double *out, const double *pycuda_reduction_inp, double *x, double *id,
+__global__ void mean_non_zeros_stage2(double *out, const double *pycuda_reduction_inp, double *x, int *id,
                            unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -737,7 +737,7 @@ __global__ void mean_non_zeros_stage2(double *out, const double *pycuda_reductio
 
 
 extern "C"
-__global__ void stdKernel_stage1(double *out, double *x, double *y, double m,
+__global__ void stdKernel_stage1(double *out, double *x, int *y, double m,
                       unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -785,7 +785,7 @@ __global__ void stdKernel_stage1(double *out, double *x, double *y, double m,
 
 
 extern "C"
-__global__ void stdKernel_stage2(double *out, const double *pycuda_reduction_inp, double *x, double *y, double m,
+__global__ void stdKernel_stage2(double *out, const double *pycuda_reduction_inp, double *x, int *y, double m,
                       unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -833,15 +833,15 @@ __global__ void stdKernel_stage2(double *out, const double *pycuda_reduction_inp
 
 
 extern "C"
-__global__ void sum_non_zeros_stage1(double *out, double *x,
+__global__ void sum_non_zeros_stage1(int *out, int *x,
                           unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
     // running constructors on this array. Grrrr.
-    extern __shared__ double sdata[];
+    extern __shared__ int i_sdata[];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    double acc = 0;
+    int acc = 0;
     for (unsigned s = 0; s < seq_count; ++s)
     {
         if (i >= n)
@@ -849,24 +849,24 @@ __global__ void sum_non_zeros_stage1(double *out, double *x,
         acc = REDUCE(acc, ((x[i] != 0)));
         i += BLOCK_SIZE;
     }
-    sdata[tid] = acc;
+    i_sdata[tid] = acc;
     __syncthreads();
 #if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
+    if (tid < 256) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 256]); }
     __syncthreads();
 #endif
 #if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
+    if (tid < 128) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 128]); }
     __syncthreads();
 #endif
 #if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
+    if (tid < 64) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 64]); }
     __syncthreads();
 #endif
     if (tid < 32)
     {
         // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile double *smem = sdata;
+        volatile int *smem = i_sdata;
         if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
         if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
         if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
@@ -874,22 +874,22 @@ __global__ void sum_non_zeros_stage1(double *out, double *x,
         if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
         if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
     }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
+    if (tid == 0) out[blockIdx.x] = i_sdata[0];
 }
 
 
 
 
 extern "C"
-__global__ void sum_non_zeros_stage2(double *out, const double *pycuda_reduction_inp, double *x,
+__global__ void sum_non_zeros_stage2(int *out, const int *pycuda_reduction_inp, int *x,
                           unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
     // running constructors on this array. Grrrr.
-    extern __shared__ double sdata[];
+    extern __shared__ int i_sdata[];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    double acc = 0;
+    int acc = 0;
     for (unsigned s = 0; s < seq_count; ++s)
     {
         if (i >= n)
@@ -897,24 +897,24 @@ __global__ void sum_non_zeros_stage2(double *out, const double *pycuda_reduction
         acc = REDUCE(acc, (pycuda_reduction_inp[i]));
         i += BLOCK_SIZE;
     }
-    sdata[tid] = acc;
+    i_sdata[tid] = acc;
     __syncthreads();
 #if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
+    if (tid < 256) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 256]); }
     __syncthreads();
 #endif
 #if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
+    if (tid < 128) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 128]); }
     __syncthreads();
 #endif
 #if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
+    if (tid < 64) { i_sdata[tid] = REDUCE(i_sdata[tid], i_sdata[tid + 64]); }
     __syncthreads();
 #endif
     if (tid < 32)
     {
         // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile double *smem = sdata;
+        volatile int *smem = i_sdata;
         if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
         if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
         if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
@@ -922,7 +922,7 @@ __global__ void sum_non_zeros_stage2(double *out, const double *pycuda_reduction
         if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
         if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
     }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
+    if (tid == 0) out[blockIdx.x] = i_sdata[0];
 }
 
 

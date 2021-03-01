@@ -93,17 +93,17 @@ gpu_complex_copy = ElementwiseKernel(
 
 stdKernel = ReductionKernel(bm.precision.real_t, neutral="0",
                             reduce_expr="a+b", map_expr="(y[i]!=0)*(x[i]-m)*(x[i]-m)",
-                            arguments=f"{bm.precision.str} *x, {bm.precision.str} *y, {bm.precision.str} m",
+                            arguments=f"{bm.precision.str} *x, int *y, {bm.precision.str} m",
                             name="stdKernel")
 
-sum_non_zeros = ReductionKernel(bm.precision.real_t, neutral="0",
+sum_non_zeros = ReductionKernel(np.int32, neutral="0",
                                 reduce_expr="a+b", map_expr="(x[i]!=0)",
-                                arguments=f"{bm.precision.str} *x",
+                                arguments="int *x",
                                 name="sum_non_zeros")
 
 mean_non_zeros = ReductionKernel(bm.precision.real_t, neutral="0",
                                  reduce_expr="a+b", map_expr="(id[i]!=0)*x[i]",
-                                 arguments=f"{bm.precision.str} *x, {bm.precision.str} *id",
+                                 arguments=f"{bm.precision.str} *x, int *id",
                                  name="mean_non_zeros")
 
 cugradient = central_mod.get_function("cugradient")

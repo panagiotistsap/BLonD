@@ -22,7 +22,7 @@ def use_gpu_beam(self):
 
     self.dt_obj = CGA(self.dt)
 
-    self.id_obj = CGA(self.id, dtype2=bm.precision.real_t)
+    self.id_obj = CGA(self.id, dtype2=np.int32)
     self.__class__ = gb.GpuBeam
 
 

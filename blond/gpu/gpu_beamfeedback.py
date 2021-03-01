@@ -1,6 +1,6 @@
 import numpy as np
 from ..utils import bmath as bm
-from ..gpu.gpu_butils_wrap import gpu_copy_one, triple_kernel, \
+from ..gpu.gpu_butils_wrap import gpu_copy_one, fb_track_kernel, \
     first_kernel_x, second_kernel_x, third_kernel_x, indexing_double, indexing_int, sincos_mul_add, mul_d, \
     sincos_mul_add_2
 from ..gpu.gpu_cache import get_gpuarray
@@ -81,7 +81,7 @@ class GpuBeamFeedback(BeamFeedback):
         # Update the RF frequency of all systems for the next turn
         counter = self.rf_station.counter[0] + 1
 
-        triple_kernel(self.rf_station.dev_omega_rf, self.rf_station.dev_harmonic,
+        fb_track_kernel(self.rf_station.dev_omega_rf, self.rf_station.dev_harmonic,
                       self.rf_station.dev_dphi_rf, self.rf_station.dev_omega_rf_d,
                       self.rf_station.dev_phi_rf,
                       bm.precision.real_t(self.domega_rf),
@@ -90,8 +90,7 @@ class GpuBeamFeedback(BeamFeedback):
                       block=(32, 1, 1), grid=(1, 1, 1))
 
         self.rf_station.omega_rf_obj.invalidate_cpu()
-        self.rf_station.dphi_rf_obj.invalidate_cpu()
-        self.rf_station.phi_rf_obj.invalidate_cpu()
+        
 
     @timing.timeit(key='serial:beam_phase_sharpWindow')
     def beam_phase_sharpWindow(self):

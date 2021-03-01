@@ -2,7 +2,7 @@ from __future__ import division, print_function
 import numpy as np
 from ..utils import bmath as bm
 from ..gpu.gpu_cache import get_gpuarray
-from ..gpu.gpu_butils_wrap import gpu_copy_d2d, first_kernel_tracker, second_kernel_tracker, \
+from ..gpu.gpu_butils_wrap import gpu_copy_d2d, first_kernel_tracker, second_kernel_tracker, tracker_fb_track_kernel, \
     cavityFB_case, add_kernel, gpu_rf_voltage_calc_mem_ops
 
 try:
@@ -66,6 +66,18 @@ class GpuRingAndRFTracker(RingAndRFTracker):
 
         if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
+
+        counter = turn + 1
+        tracker_fb_track_kernel(self.rf_params.dev_omega_rf, self.rf_params.dev_harmonic,
+                self.rf_params.dev_dphi_rf, self.rf_params.dev_omega_rf_d,
+                self.rf_params.dev_phi_rf,
+                np.int32(self.rf_params.n_turns + 1),
+                np.int32(counter), np.int32(self.rf_params.n_rf),
+                block=(32, 1, 1), grid=(1, 1, 1))
+
+        self.rf_params.dphi_rf_obj.invalidate_cpu()
+        self.rf_params.phi_rf_obj.invalidate_cpu()
+        
         if self.periodicity:
             RuntimeError('periodicity feature is not supported in GPU.')
         else:

@@ -141,7 +141,7 @@ __global__ void cugradient(
 
 
 extern "C"
-__global__ void gpu_beam_fb_track_other(float *omega_rf,
+__global__ void gpu_beam_fb_track_fb_part(float *omega_rf,
                                         float *harmonic,
                                         float *dphi_rf,
                                         float *omega_rf_d,
@@ -152,13 +152,36 @@ __global__ void gpu_beam_fb_track_other(float *omega_rf,
                                         int counter,
                                         int n_rf)
 {
-    float a, b, c;
+    float a;
     for (int i = threadIdx.x; i < n_rf; i += blockDim.x) {
         a = domega_rf * harmonic[i * size + counter] / harmonic[counter];
-        b =  2.0 * PI * harmonic[size * i + counter] * (a + omega_rf[i * size + counter] - omega_rf_d[size * i + counter]) / omega_rf_d[size * i + counter];
-        c = dphi_rf[i] +  b;
         omega_rf[i * size + counter] += a;
+        // b =  2.0 * PI * harmonic[size * i + counter] * (a + omega_rf[i * size + counter] - omega_rf_d[size * i + counter]) / omega_rf_d[size * i + counter];
+        // dphi_rf[i] +=  b;
+        // c = dphi_rf[i] +  b;
+        // phi_rf[size * i + counter] += c;
+        // omega_rf[i * size + counter] += a;
+        // dphi_rf[i] +=  b;
+        // phi_rf[size * i + counter] += c;
+    }
+}
+
+extern "C"
+__global__ void gpu_beam_fb_track_tracker_part(float *omega_rf,
+                                        float *harmonic,
+                                        float *dphi_rf,
+                                        float *omega_rf_d,
+                                        float *phi_rf,
+                                        int size,
+                                        int counter,
+                                        int n_rf)
+{
+    float b, c;
+    for (int i = threadIdx.x; i < n_rf; i += blockDim.x) {
+        
+        b =  2.0 * PI * harmonic[size * i + counter] * (omega_rf[i * size + counter] - omega_rf_d[size * i + counter]) / omega_rf_d[size * i + counter];
         dphi_rf[i] +=  b;
+        c = dphi_rf[i];
         phi_rf[size * i + counter] += c;
     }
 }

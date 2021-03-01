@@ -172,7 +172,9 @@ gpu_copy_one = ElementwiseKernel(
     "x[i] = y[ind]",
     "gpu_copy_one")
 
-triple_kernel = central_mod.get_function("gpu_beam_fb_track_other")
+fb_track_kernel = central_mod.get_function("gpu_beam_fb_track_fb_part")
+
+tracker_fb_track_kernel = central_mod.get_function("gpu_beam_fb_track_tracker_part")
 
 first_kernel_x = ElementwiseKernel(
     f"{bm.precision.str} *omega_rf, {bm.precision.str} *harmonic,  {bm.precision.str} domega_rf, int size, int counter",

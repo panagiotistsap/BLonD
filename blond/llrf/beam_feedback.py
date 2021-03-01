@@ -226,14 +226,15 @@ class BeamFeedback(object):
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
 
-        self.rf_station.dphi_rf += 2.*np.pi*self.rf_station.harmonic[:, counter] * \
-            (self.rf_station.omega_rf[:, counter] -
-             self.rf_station.omega_rf_d[:, counter]) / \
-            self.rf_station.omega_rf_d[:, counter]
+        # self.rf_station.dphi_rf += 2.*np.pi*self.rf_station.harmonic[:, counter] * \
+        #     (self.rf_station.omega_rf[:, counter] -
+        #      self.rf_station.omega_rf_d[:, counter]) / \
+        #     self.rf_station.omega_rf_d[:, counter]
 
         
         # Total phase offset
-        self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf
+        # self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf
+
     def precalculate_time(self, Ring):
         '''
         *For machines like the PSB, where the PL acts only in certain time

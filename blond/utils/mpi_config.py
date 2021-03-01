@@ -222,11 +222,43 @@ class Worker:
 
         return recvbuf
 
-    @timing.timeit(key='comm:broadcast')
-    # @mpiprof.traceit(key='comm:scatter')
-    def broadcast(self, var, root=0):
-        if self.log:
-            self.logger.debug('broadcast')
+    def broadcast(self, var):
+        self.logger.debug('broadcast')
+
+        # First broadcast the size and dtype from the master
+        recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
+        size, dtype = recvbuf[0], recvbuf[1]
+
+        if self.isMaster:   
+            recvbuf = self.intercomm.bcast(var, root=0)
+        else:
+            recvbuf = np.empty(size, dtype=dtype)
+            recvbuf = self.intercomm.bcast(var, root=0)
+
+        return recvbuf
+
+    # def allreduce(self, sendbuf, recvbuf=None):
+    #     self.logger.debug('allreduce')
+    #     dtype = sendbuf.dtype.name
+    #     if dtype == 'int16':
+    #         op = add_op_int16
+    #     elif dtype == 'int32':
+    #         op = add_op_int32
+    #     elif dtype == 'int64':
+    #         op = add_op_int64
+    #     elif dtype == 'uint16':
+    #         op = add_op_uint16
+    #     elif dtype == 'uint32':
+    #         op = add_op_uint32
+    #     elif dtype == 'uint64':
+    #         op = add_op_uint64
+    #     elif dtype == 'float32':
+    #         op = add_op_float32
+    #     elif dtype == 'float64':
+    #         op = add_op_float64
+    #     else:
+    #         print('Error: Not recognized dtype:{}'.format(dtype))
+    #         exit(-1)
 
         if self.gpucommrank == root:
             recvbuf = self.gpucomm.bcast(var, root=root)
